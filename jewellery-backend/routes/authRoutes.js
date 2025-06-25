@@ -24,17 +24,51 @@ router.post("/send-otp", (req, res) => {
   res.json({ message: "OTP sent successfully" });
 });
 
-// ✅ 2. Verify OTP
-router.post("/verify-otp", (req, res) => {
-  const { phone_number, otp } = req.body;
 
-  if (getOtp(phone_number) === otp) {
-    clearOtp(phone_number);
-    return res.json({ message: "OTP verified successfully" });
+// ✅ 2. Verify OTP and return user data if exists
+// ✅ 2. Verify OTP and return user data if exists
+router.post("/verify-otp", (req, res) => {
+  const { phone, otp } = req.body;
+
+  console.log("🔔 Received verify-otp:", { phone, otp });
+
+  if (getOtp(phone) !== otp) {
+    console.log("❌ Invalid OTP");
+    return res.status(400).json({ message: "Invalid OTP" });
   }
 
-  res.status(400).json({ message: "Invalid OTP" });
+  clearOtp(phone);
+
+  const query = "SELECT name, phone FROM users WHERE phone = ?";
+  db.query(query, [phone], (err, results) => {
+    if (err) {
+      console.error("❌ MySQL error:", err.message);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    console.log("🧪 Query Results:", results);
+
+    if (results.length > 0) {
+      const user = results[0];
+      console.log("✅ User found:", user);
+      return res.status(200).json({
+        name: user.name,
+        phone: user.number,
+        isNewUser: false
+      });
+    }
+
+    console.log("🆕 New user — not registered yet");
+    return res.status(200).json({
+      isNewUser: true
+    });
+  });
 });
+
+
+
+
+
 
 // ✅ 3. Register User (after verifying OTP)
 router.post("/register", (req, res) => {
